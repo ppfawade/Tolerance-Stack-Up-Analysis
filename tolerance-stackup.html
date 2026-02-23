@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tolerance Stack-Up Analysis Tool</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0f1e;
+            --bg-secondary: #141b2d;
+            --bg-card: rgba(30, 41, 59, 0.7);
+            --border-color: rgba(148, 163, 184, 0.1);
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-tertiary: #64748b;
+            --accent-primary: #6366f1;
+            --accent-secondary: #8b5cf6;
+            --success: #10b981;
+            --warning: #fbbf24;
+            --danger: #ef4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'IBM Plex Sans', -apple-system, sans-serif;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, var(--bg-primary) 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .tech-grid {
+            background-image: 
+                linear-gradient(rgba(99, 102, 241, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(99, 102, 241, 0.03) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .glass-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+        }
+
+        .glass-card:hover {
+            background: rgba(30, 41, 59, 0.8);
+            border-color: rgba(99, 102, 241, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        header {
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #f1f5f9 0%, #6366f1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -2px;
+            line-height: 1.1;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid var(--border-color);
+            margin-bottom: 2rem;
+            gap: 0.5rem;
+        }
+
+        .tab-button {
+            padding: 0.75rem 1.5rem;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            position: relative;
+            font-size: 0.95rem;
+            font-family: inherit;
+        }
+
+        .tab-button::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .tab-button.active {
+            color: var(--text-primary);
+        }
+
+        .tab-button.active::after {
+            transform: scaleX(1);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            font-family: inherit;
+            font-size: 0.95rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-primary) 0%, #4f46e5 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(71, 85, 105, 0.6);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(71, 85, 105, 0.8);
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger) 0%, #dc2626 100%);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn-danger:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .input-field {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1rem;
+            width: 100%;
+            transition: all 0.2s ease;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: rgba(99, 102, 241, 0.6);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+            background: rgba(15, 23, 42, 0.8);
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+        }
+
+        .grid-auto {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .label {
+            display: block;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .dimension-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .dimension-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(99, 102, 241, 0.3);
+        }
+
+        .dimension-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .dimension-number {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .tolerance-bar {
+            position: relative;
+            height: 40px;
+            border-radius: 8px;
+            background: rgba(15, 23, 42, 0.6);
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+        }
+
+        .tolerance-zone {
+            position: absolute;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                rgba(99, 102, 241, 0.1), 
+                rgba(99, 102, 241, 0.3), 
+                rgba(99, 102, 241, 0.1));
+            border: 2px solid rgba(99, 102, 241, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        .nominal-marker {
+            position: absolute;
+            width: 3px;
+            height: 100%;
+            background: linear-gradient(to bottom, var(--warning), #f59e0b);
+            box-shadow: 0 0 10px rgba(251, 191, 36, 0.8);
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .status-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-pass {
+            background: rgba(16, 185, 129, 0.2);
+            color: #6ee7b7;
+            border: 2px solid rgba(16, 185, 129, 0.4);
+        }
+
+        .status-fail {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            border: 2px solid rgba(239, 68, 68, 0.4);
+        }
+
+        .metric-display {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #a5b4fc 0%, var(--accent-primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .result-card {
+            padding: 2rem;
+            border-radius: 16px;
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color);
+        }
+
+        .histogram {
+            display: flex;
+            align-items: flex-end;
+            gap: 2px;
+            height: 120px;
+        }
+
+        .histogram-bar {
+            flex: 1;
+            background: linear-gradient(to top, var(--accent-primary), #a5b4fc);
+            border-radius: 2px 2px 0 0;
+            transition: height 0.3s ease;
+        }
+
+        .info-box {
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .mb-2 { margin-bottom: 2rem; }
+        .mb-1 { margin-bottom: 1rem; }
+        .mt-2 { margin-top: 2rem; }
+
+        select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            padding-right: 2.5rem;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="tech-grid">
+        <div class="container">
+            <header>
+                <h1>Tolerance Stack-Up Analysis</h1>
+                <p class="subtitle">Advanced clearance fit analysis with Monte Carlo simulation</p>
+            </header>
+
+            <div class="tabs">
+                <button class="tab-button active" onclick="switchTab('dimensions')">📐 Dimensions</button>
+                <button class="tab-button" onclick="switchTab('fit')">🎯 Fit Analysis</button>
+                <button class="tab-button" onclick="switchTab('results')">📊 Results</button>
+            </div>
+
+            <!-- Dimensions Tab -->
+            <div id="dimensions-tab" class="tab-content active">
+                <div class="toolbar">
+                    <button class="btn btn-primary" onclick="addDimension()">
+                        ➕ Add Dimension
+                    </button>
+                    <button class="btn btn-secondary" onclick="saveConfiguration()">
+                        💾 Save Config
+                    </button>
+                    <label class="btn btn-secondary" style="cursor: pointer;">
+                        📁 Load Config
+                        <input type="file" accept=".json" onchange="loadConfiguration(event)" style="display: none;">
+                    </label>
+                </div>
+
+                <div id="dimensions-list" class="grid-auto mb-2"></div>
+
+                <div class="glass-card">
+                    <h3 style="font-size: 1.5rem; margin-bottom: 1.5rem; color: #a5b4fc;">Tolerance Zone Visualization</h3>
+                    <div id="visualization"></div>
+                </div>
+            </div>
+
+            <!-- Fit Analysis Tab -->
+            <div id="fit-tab" class="tab-content">
+                <div class="mb-2">
+                    <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer;">
+                        <input type="checkbox" id="fit-enabled" onchange="toggleFitAnalysis()" style="width: 20px; height: 20px; cursor: pointer;">
+                        <span style="font-size: 1.1rem; font-weight: 600;">Enable Clearance Fit Analysis</span>
+                    </label>
+                </div>
+
+                <div id="fit-config" class="hidden">
+                    <div class="grid-2 mb-2">
+                        <div class="glass-card">
+                            <h3 style="font-size: 1.25rem; margin-bottom: 1.5rem; color: #a5b4fc;">Hole Configuration</h3>
+                            <div class="mb-1">
+                                <label class="label">Nominal Diameter (mm)</label>
+                                <input type="number" class="input-field" id="hole-nominal" value="10.0" step="0.001" oninput="calculateFit()">
+                            </div>
+                            <div class="mb-1">
+                                <label class="label">Tolerance (±mm)</label>
+                                <input type="number" class="input-field" id="hole-tolerance" value="0.1" step="0.001" oninput="calculateFit()">
+                            </div>
+                        </div>
+
+                        <div class="glass-card">
+                            <h3 style="font-size: 1.25rem; margin-bottom: 1.5rem; color: #a5b4fc;">Shaft Configuration</h3>
+                            <div class="mb-1">
+                                <label class="label">Nominal Diameter (mm)</label>
+                                <input type="number" class="input-field" id="shaft-nominal" value="9.9" step="0.001" oninput="calculateFit()">
+                            </div>
+                            <div class="mb-1">
+                                <label class="label">Tolerance (±mm)</label>
+                                <input type="number" class="input-field" id="shaft-tolerance" value="0.05" step="0.001" oninput="calculateFit()">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="fit-results" class="glass-card"></div>
+                </div>
+
+                <div id="fit-placeholder" class="glass-card" style="padding: 4rem 2rem; text-align: center;">
+                    <div style="font-size: 4rem; margin-bottom: 1rem;">🎯</div>
+                    <p style="font-size: 1.1rem; color: var(--text-secondary);">
+                        Enable clearance fit analysis to evaluate hole/shaft relationships
+                    </p>
+                </div>
+            </div>
+
+            <!-- Results Tab -->
+            <div id="results-tab" class="tab-content">
+                <div class="grid-2 mb-2">
+                    <div class="result-card">
+                        <div style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem; text-transform: uppercase; font-weight: 600;">
+                            Nominal Total
+                        </div>
+                        <div class="metric-display" id="nominal-total">0.0000</div>
+                        <div style="font-size: 0.85rem; color: var(--text-tertiary); margin-top: 0.5rem;">mm</div>
+                    </div>
+
+                    <div class="result-card">
+                        <div style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem; text-transform: uppercase; font-weight: 600;">
+                            Tolerance Reduction
+                        </div>
+                        <div class="metric-display" id="tolerance-reduction">0.0%</div>
+                        <div style="font-size: 0.85rem; color: var(--text-tertiary); margin-top: 0.5rem;">RSS vs Worst-Case</div>
+                    </div>
+                </div>
+
+                <div class="grid-2 mb-2">
+                    <div class="glass-card" style="border-left: 4px solid var(--danger);">
+                        <div style="font-size: 1rem; color: var(--text-secondary); margin-bottom: 1.5rem; text-transform: uppercase; font-weight: 600;">
+                            Worst-Case Analysis
+                        </div>
+                        <div class="grid-2 mb-1">
+                            <div>
+                                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Maximum</div>
+                                <div style="font-size: 1.75rem; font-weight: 700; color: var(--danger); font-family: 'JetBrains Mono', monospace;" id="wc-max">
+                                    0.0000
+                                </div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Minimum</div>
+                                <div style="font-size: 1.75rem; font-weight: 700; color: var(--danger); font-family: 'JetBrains Mono', monospace;" id="wc-min">
+                                    0.0000
+                                </div>
+                            </div>
+                        </div>
+                        <div style="padding: 1rem; background: rgba(239, 68, 68, 0.1); border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.2);">
+                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Total Range</div>
+                            <div style="font-size: 1.5rem; font-weight: 700; color: #fca5a5; font-family: 'JetBrains Mono', monospace;" id="wc-range">
+                                ±0.0000
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass-card" style="border-left: 4px solid var(--success);">
+                        <div style="font-size: 1rem; color: var(--text-secondary); margin-bottom: 1.5rem; text-transform: uppercase; font-weight: 600;">
+                            RSS (Root Sum Square)
+                        </div>
+                        <div class="grid-2 mb-1">
+                            <div>
+                                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Maximum</div>
+                                <div style="font-size: 1.75rem; font-weight: 700; color: var(--success); font-family: 'JetBrains Mono', monospace;" id="rss-max">
+                                    0.0000
+                                </div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Minimum</div>
+                                <div style="font-size: 1.75rem; font-weight: 700; color: var(--success); font-family: 'JetBrains Mono', monospace;" id="rss-min">
+                                    0.0000
+                                </div>
+                            </div>
+                        </div>
+                        <div style="padding: 1rem; background: rgba(16, 185, 129, 0.1); border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.2);">
+                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Total Range</div>
+                            <div style="font-size: 1.5rem; font-weight: 700; color: #6ee7b7; font-family: 'JetBrains Mono', monospace;" id="rss-range">
+                                ±0.0000
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card mb-2" style="border-left: 4px solid var(--accent-secondary);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <div style="font-size: 1rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 600;">
+                            Monte Carlo Simulation
+                        </div>
+                        <div style="display: flex; gap: 1rem; align-items: center;">
+                            <input type="number" id="mc-samples" value="10000" min="1000" max="100000" step="1000" class="input-field" style="width: 120px; padding: 0.5rem;">
+                            <button class="btn btn-primary" onclick="runMonteCarlo()">
+                                🔄 Run Simulation
+                            </button>
+                        </div>
+                    </div>
+                    <div id="mc-results"></div>
+                </div>
+
+                <div class="glass-card">
+                    <h3 style="font-size: 1.25rem; margin-bottom: 1.5rem; color: #a5b4fc;">Process Capability Analysis</h3>
+                    <div class="grid-2">
+                        <div>
+                            <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">Cp (Process Capability)</div>
+                            <div style="font-size: 3rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; margin-bottom: 0.5rem;" id="cp-value">
+                                0.00
+                            </div>
+                            <div style="font-size: 0.9rem; color: var(--text-tertiary);" id="cp-rating">
+                                Calculating...
+                            </div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">Cpk (Process Capability Index)</div>
+                            <div style="font-size: 3rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; margin-bottom: 0.5rem;" id="cpk-value">
+                                0.00
+                            </div>
+                            <div style="font-size: 0.9rem; color: var(--text-tertiary);" id="cpk-recommendation">
+                                Calculating...
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="info-box mt-2">
+                        <h4 style="font-size: 1rem; margin-bottom: 1rem; color: #a5b4fc;">Analysis Interpretation</h4>
+                        <ul id="capability-interpretation" style="margin: 0; padding-left: 1.5rem; color: #cbd5e1; line-height: 1.8;"></ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Application State
+        let dimensions = [
+            { id: 1, name: 'Dimension 1', nominal: 10.0, tolerance: 0.05, type: 'bilateral', direction: 1, distribution: 'normal' }
+        ];
+        let nextId = 2;
+        let currentTab = 'dimensions';
+
+        // Tab Management
+        function switchTab(tabName) {
+            currentTab = tabName;
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            
+            document.getElementById(tabName + '-tab').classList.add('active');
+            event.target.classList.add('active');
+            
+            if (tabName === 'results') {
+                calculateAndUpdateResults();
+            }
+        }
+
+        // Dimension Management
+        function addDimension() {
+            dimensions.push({
+                id: nextId++,
+                name: `Dimension ${nextId}`,
+                nominal: 5.0,
+                tolerance: 0.05,
+                type: 'bilateral',
+                direction: 1,
+                distribution: 'normal'
+            });
+            renderDimensions();
+            renderVisualization();
+            if (currentTab === 'results') calculateAndUpdateResults();
+        }
+
+        function removeDimension(id) {
+            if (dimensions.length > 1) {
+                dimensions = dimensions.filter(d => d.id !== id);
+                renderDimensions();
+                renderVisualization();
+                if (currentTab === 'results') calculateAndUpdateResults();
+            }
+        }
+
+        function updateDimension(id, field, value) {
+            const dim = dimensions.find(d => d.id === id);
+            if (dim) {
+                if (field === 'nominal' || field === 'tolerance') {
+                    dim[field] = parseFloat(value) || 0;
+                } else if (field === 'direction') {
+                    dim[field] = parseInt(value);
+                } else {
+                    dim[field] = value;
+                }
+                renderVisualization();
+                if (currentTab === 'results') calculateAndUpdateResults();
+            }
+        }
+
+        function renderDimensions() {
+            const container = document.getElementById('dimensions-list');
+            container.innerHTML = dimensions.map((dim, index) => `
+                <div class="dimension-card">
+                    <div class="dimension-header">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div class="dimension-number">${index + 1}</div>
+                            <input type="text" class="input-field" value="${dim.name}" 
+                                   style="width: 180px; padding: 0.5rem 0.75rem; font-weight: 600;"
+                                   onchange="updateDimension(${dim.id}, 'name', this.value)">
+                        </div>
+                        <button class="btn btn-danger" onclick="removeDimension(${dim.id})" 
+                                ${dimensions.length === 1 ? 'disabled' : ''}>
+                            🗑️
+                        </button>
+                    </div>
+
+                    <div class="grid-2 mb-1">
+                        <div>
+                            <label class="label">Nominal (mm)</label>
+                            <input type="number" class="input-field" value="${dim.nominal}" step="0.001"
+                                   oninput="updateDimension(${dim.id}, 'nominal', this.value)">
+                        </div>
+                        <div>
+                            <label class="label">Tolerance (mm)</label>
+                            <input type="number" class="input-field" value="${dim.tolerance}" step="0.001"
+                                   oninput="updateDimension(${dim.id}, 'tolerance', this.value)">
+                        </div>
+                    </div>
+
+                    <div class="grid-2 mb-1">
+                        <div>
+                            <label class="label">Type</label>
+                            <select class="input-field" onchange="updateDimension(${dim.id}, 'type', this.value)">
+                                <option value="bilateral" ${dim.type === 'bilateral' ? 'selected' : ''}>± Bilateral</option>
+                                <option value="unilateral" ${dim.type === 'unilateral' ? 'selected' : ''}>Unilateral</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="label">Direction</label>
+                            <select class="input-field" onchange="updateDimension(${dim.id}, 'direction', this.value)">
+                                <option value="1" ${dim.direction === 1 ? 'selected' : ''}>+ Add</option>
+                                <option value="-1" ${dim.direction === -1 ? 'selected' : ''}>− Subtract</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="label">Distribution</label>
+                        <select class="input-field" onchange="updateDimension(${dim.id}, 'distribution', this.value)">
+                            <option value="normal" ${dim.distribution === 'normal' ? 'selected' : ''}>Normal (Gaussian)</option>
+                            <option value="uniform" ${dim.distribution === 'uniform' ? 'selected' : ''}>Uniform</option>
+                            <option value="bernoulli" ${dim.distribution === 'bernoulli' ? 'selected' : ''}>Bernoulli (Binary)</option>
+                            <option value="trapezoidal" ${dim.distribution === 'trapezoidal' ? 'selected' : ''}>Trapezoidal</option>
+                        </select>
+                    </div>
+
+                    <div style="margin-top: 1rem; padding: 1rem; background: rgba(99, 102, 241, 0.1); border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.2);">
+                        <div style="font-family: 'JetBrains Mono', monospace; font-size: 1.2rem; font-weight: 600; color: var(--text-primary);">
+                            ${dim.direction === 1 ? '+' : '−'}${dim.nominal.toFixed(3)}
+                            <span style="color: var(--warning); margin-left: 0.75rem;">
+                                ${dim.type === 'bilateral' ? `±${dim.tolerance.toFixed(3)}` : `+${dim.tolerance.toFixed(3)}/0`}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderVisualization() {
+            const maxValue = Math.max(
+                ...dimensions.map(d => Math.abs(d.nominal) + Math.abs(d.tolerance)),
+                1
+            );
+            
+            const container = document.getElementById('visualization');
+            container.innerHTML = dimensions.map((dim, index) => {
+                const scale = 100 / maxValue;
+                const nominalPos = 50 + (dim.nominal * dim.direction * scale / 2);
+                const toleranceWidth = Math.abs(dim.tolerance * scale);
+                const toleranceLeft = Math.max(0, Math.min(100, nominalPos - toleranceWidth / 2));
+                
+                return `
+                    <div style="margin-bottom: 1.5rem;">
+                        <div style="font-size: 0.95rem; margin-bottom: 0.75rem; color: #cbd5e1; font-weight: 600; display: flex; justify-content: space-between;">
+                            <span>${index + 1}. ${dim.name}</span>
+                            <span style="font-family: 'JetBrains Mono', monospace; color: var(--text-secondary);">
+                                ${(dim.nominal * dim.direction).toFixed(3)} mm
+                            </span>
+                        </div>
+                        <div class="tolerance-bar">
+                            <div class="tolerance-zone" style="left: ${toleranceLeft}%; width: ${Math.min(toleranceWidth, 100 - toleranceLeft)}%;"></div>
+                            <div class="nominal-marker" style="left: ${Math.max(0, Math.min(100, nominalPos))}%;"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Stack-up Calculations
+        function calculateStackup() {
+            let nominalSum = 0;
+            let worstCasePlus = 0;
+            let worstCaseMinus = 0;
+            let rssSum = 0;
+
+            dimensions.forEach(dim => {
+                const directedNominal = dim.nominal * dim.direction;
+                nominalSum += directedNominal;
+                
+                const absTolerance = Math.abs(dim.tolerance);
+                
+                // Worst case: algebraic sum of tolerances
+                worstCasePlus += absTolerance;
+                worstCaseMinus += absTolerance;
+                
+                // RSS: root sum of squares
+                rssSum += absTolerance * absTolerance;
+            });
+
+            const rssValue = Math.sqrt(rssSum);
+
+            return {
+                nominal: nominalSum,
+                worstCaseMax: nominalSum + worstCasePlus,
+                worstCaseMin: nominalSum - worstCaseMinus,
+                rssMax: nominalSum + rssValue,
+                rssMin: nominalSum - rssValue,
+                worstCaseRange: 2 * worstCasePlus,
+                rssRange: 2 * rssValue
+            };
+        }
+
+        function calculateProcessCapability() {
+            const results = calculateStackup();
+            // Assuming target requirement and tolerance spec
+            const targetTolerance = 0.2; // Default spec tolerance
+            
+            const rssSpread = results.rssRange / 2;
+            
+            // Cp = (USL - LSL) / (6 * sigma)
+            // For RSS, sigma ≈ rssSpread / 3
+            const sigma = rssSpread / 3;
+            const cp = targetTolerance / (3 * sigma);
+            
+            // Cpk considers process centering
+            // Cpk = min((USL - mean)/(3*sigma), (mean - LSL)/(3*sigma))
+            // Assuming centered process for simplicity
+            const cpk = cp; // Simplified - in reality would calculate from target
+            
+            return { cp, cpk };
+        }
+
+        function calculateAndUpdateResults() {
+            const results = calculateStackup();
+            const capability = calculateProcessCapability();
+            
+            // Update display
+            document.getElementById('nominal-total').textContent = results.nominal.toFixed(4);
+            document.getElementById('wc-max').textContent = results.worstCaseMax.toFixed(4);
+            document.getElementById('wc-min').textContent = results.worstCaseMin.toFixed(4);
+            document.getElementById('wc-range').textContent = `±${(results.worstCaseRange / 2).toFixed(4)}`;
+            
+            document.getElementById('rss-max').textContent = results.rssMax.toFixed(4);
+            document.getElementById('rss-min').textContent = results.rssMin.toFixed(4);
+            document.getElementById('rss-range').textContent = `±${(results.rssRange / 2).toFixed(4)}`;
+            
+            const reduction = ((results.worstCaseRange - results.rssRange) / results.worstCaseRange * 100);
+            document.getElementById('tolerance-reduction').textContent = reduction.toFixed(1) + '%';
+            
+            // Update Cp/Cpk
+            const cpEl = document.getElementById('cp-value');
+            const cpkEl = document.getElementById('cpk-value');
+            cpEl.textContent = capability.cp.toFixed(2);
+            cpkEl.textContent = capability.cpk.toFixed(2);
+            
+            cpEl.style.color = capability.cp >= 1.33 ? 'var(--success)' : 'var(--danger)';
+            cpkEl.style.color = capability.cpk >= 1.33 ? 'var(--success)' : 'var(--danger)';
+            
+            // Ratings
+            let cpRating = capability.cp >= 1.67 ? '⭐ Excellent (≥1.67)' :
+                          capability.cp >= 1.33 ? '✓ Good (≥1.33)' :
+                          capability.cp >= 1.0 ? '⚠ Marginal (≥1.0)' : '✗ Poor (<1.0)';
+            document.getElementById('cp-rating').textContent = cpRating;
+            
+            let recommendation = capability.cpk >= 1.33 ? 'Use RSS' : 'Use Worst-Case';
+            document.getElementById('cpk-recommendation').textContent = `Recommendation: ${recommendation}`;
+            
+            // Interpretation
+            const interp = document.getElementById('capability-interpretation');
+            if (capability.cpk >= 1.33) {
+                interp.innerHTML = `
+                    <li>Process is <strong style="color: var(--success);">highly capable</strong> (Cpk ≥ 1.33)</li>
+                    <li>RSS method recommended - reduces costs while maintaining quality</li>
+                    <li>Expected defect rate: &lt; 63 PPM (parts per million)</li>
+                    <li>99.99% of parts will meet specification</li>
+                `;
+            } else if (capability.cpk >= 1.0) {
+                interp.innerHTML = `
+                    <li>Process is <strong style="color: var(--warning);">marginally capable</strong> (1.0 ≤ Cpk &lt; 1.33)</li>
+                    <li>Consider worst-case analysis for critical applications</li>
+                    <li>Expected defect rate: ~2700 PPM</li>
+                    <li>Recommend process improvements or tighter tolerances</li>
+                `;
+            } else {
+                interp.innerHTML = `
+                    <li>Process is <strong style="color: var(--danger);">not capable</strong> (Cpk &lt; 1.0)</li>
+                    <li>Must use worst-case analysis</li>
+                    <li>High defect rate expected (&gt; 2700 PPM)</li>
+                    <li>Critical: Improve manufacturing process or loosen tolerances</li>
+                `;
+            }
+        }
+
+        // Monte Carlo Simulation
+        function runMonteCarlo() {
+            const samples = parseInt(document.getElementById('mc-samples').value) || 10000;
+            const results = [];
+            
+            for (let i = 0; i < samples; i++) {
+                let sum = 0;
+                
+                dimensions.forEach(dim => {
+                    let value;
+                    const nominal = dim.nominal * dim.direction;
+                    const tol = Math.abs(dim.tolerance);
+                    
+                    switch(dim.distribution) {
+                        case 'normal':
+                            // Box-Muller transform for normal distribution
+                            const u1 = Math.random();
+                            const u2 = Math.random();
+                            const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+                            value = nominal + z * (tol / 3); // 3-sigma spread
+                            break;
+                        case 'uniform':
+                            value = nominal + (Math.random() * 2 - 1) * tol;
+                            break;
+                        case 'bernoulli':
+                            value = nominal + (Math.random() > 0.5 ? tol : -tol);
+                            break;
+                        case 'trapezoidal':
+                            const r1 = Math.random();
+                            const r2 = Math.random();
+                            const avg = (r1 + r2) / 2;
+                            value = nominal + (avg * 2 - 1) * tol;
+                            break;
+                        default:
+                            value = nominal;
+                    }
+                    
+                    sum += value;
+                });
+                
+                results.push(sum);
+            }
+            
+            results.sort((a, b) => a - b);
+            
+            const mean = results.reduce((a, b) => a + b, 0) / results.length;
+            const variance = results.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / results.length;
+            const stdDev = Math.sqrt(variance);
+            
+            const percentiles = {
+                p001: results[Math.floor(samples * 0.001)],
+                p01: results[Math.floor(samples * 0.01)],
+                p50: results[Math.floor(samples * 0.5)],
+                p99: results[Math.floor(samples * 0.99)],
+                p999: results[Math.floor(samples * 0.999)]
+            };
+            
+            displayMonteCarloResults(results, mean, stdDev, percentiles);
+        }
+
+        function displayMonteCarloResults(samples, mean, stdDev, percentiles) {
+            const container = document.getElementById('mc-results');
+            
+            // Create histogram
+            const bins = 50;
+            const min = samples[0];
+            const max = samples[samples.length - 1];
+            const binWidth = (max - min) / bins;
+            const histogram = new Array(bins).fill(0);
+            
+            samples.slice(0, 1000).forEach(sample => {
+                const binIndex = Math.min(Math.floor((sample - min) / binWidth), bins - 1);
+                histogram[binIndex]++;
+            });
+            
+            const maxCount = Math.max(...histogram);
+            
+            container.innerHTML = `
+                <div class="grid-3 mb-2" style="grid-template-columns: repeat(5, 1fr);">
+                    <div style="padding: 1rem; background: rgba(139, 92, 246, 0.1); border-radius: 8px; border: 1px solid rgba(139, 92, 246, 0.2); text-align: center;">
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">P0.1%</div>
+                        <div style="font-size: 1.1rem; font-weight: 700; color: #c4b5fd; font-family: 'JetBrains Mono', monospace;">
+                            ${percentiles.p001.toFixed(4)}
+                        </div>
+                    </div>
+                    <div style="padding: 1rem; background: rgba(139, 92, 246, 0.1); border-radius: 8px; border: 1px solid rgba(139, 92, 246, 0.2); text-align: center;">
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">P1%</div>
+                        <div style="font-size: 1.1rem; font-weight: 700; color: #c4b5fd; font-family: 'JetBrains Mono', monospace;">
+                            ${percentiles.p01.toFixed(4)}
+                        </div>
+                    </div>
+                    <div style="padding: 1rem; background: rgba(139, 92, 246, 0.1); border-radius: 8px; border: 1px solid rgba(139, 92, 246, 0.2); text-align: center;">
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">P50%</div>
+                        <div style="font-size: 1.1rem; font-weight: 700; color: #c4b5fd; font-family: 'JetBrains Mono', monospace;">
+                            ${percentiles.p50.toFixed(4)}
+                        </div>
+                    </div>
+                    <div style="padding: 1rem; background: rgba(139, 92, 246, 0.1); border-radius: 8px; border: 1px solid rgba(139, 92, 246, 0.2); text-align: center;">
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">P99%</div>
+                        <div style="font-size: 1.1rem; font-weight: 700; color: #c4b5fd; font-family: 'JetBrains Mono', monospace;">
+                            ${percentiles.p99.toFixed(4)}
+                        </div>
+                    </div>
+                    <div style="padding: 1rem; background: rgba(139, 92, 246, 0.1); border-radius: 8px; border: 1px solid rgba(139, 92, 246, 0.2); text-align: center;">
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">P99.9%</div>
+                        <div style="font-size: 1.1rem; font-weight: 700; color: #c4b5fd; font-family: 'JetBrains Mono', monospace;">
+                            ${percentiles.p999.toFixed(4)}
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <div style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem;">Distribution Histogram</div>
+                    <div class="histogram">
+                        ${histogram.map(count => `
+                            <div class="histogram-bar" style="height: ${(count / maxCount) * 100}%;"></div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="grid-3">
+                    <div style="padding: 1rem; background: rgba(15, 23, 42, 0.6); border-radius: 8px;">
+                        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Mean</div>
+                        <div style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary); font-family: 'JetBrains Mono', monospace;">
+                            ${mean.toFixed(4)}
+                        </div>
+                    </div>
+                    <div style="padding: 1rem; background: rgba(15, 23, 42, 0.6); border-radius: 8px;">
+                        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Std Dev (σ)</div>
+                        <div style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary); font-family: 'JetBrains Mono', monospace;">
+                            ${stdDev.toFixed(4)}
+                        </div>
+                    </div>
+                    <div style="padding: 1rem; background: rgba(15, 23, 42, 0.6); border-radius: 8px;">
+                        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem;">6σ Range</div>
+                        <div style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary); font-family: 'JetBrains Mono', monospace;">
+                            ±${(stdDev * 3).toFixed(4)}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Fit Analysis
+        function toggleFitAnalysis() {
+            const enabled = document.getElementById('fit-enabled').checked;
+            document.getElementById('fit-config').classList.toggle('hidden', !enabled);
+            document.getElementById('fit-placeholder').classList.toggle('hidden', enabled);
+            if (enabled) calculateFit();
+        }
+
+        function calculateFit() {
+            const holeNominal = parseFloat(document.getElementById('hole-nominal').value) || 0;
+            const holeTolerance = parseFloat(document.getElementById('hole-tolerance').value) || 0;
+            const shaftNominal = parseFloat(document.getElementById('shaft-nominal').value) || 0;
+            const shaftTolerance = parseFloat(document.getElementById('shaft-tolerance').value) || 0;
+            
+            const holeMax = holeNominal + holeTolerance;
+            const holeMin = holeNominal - holeTolerance;
+            const shaftMax = shaftNominal + shaftTolerance;
+            const shaftMin = shaftNominal - shaftTolerance;
+            
+            const maxClearance = holeMax - shaftMin;
+            const minClearance = holeMin - shaftMax;
+            
+            let fitType = 'clearance';
+            let fitColor = 'var(--success)';
+            if (minClearance < 0 && maxClearance > 0) {
+                fitType = 'transition';
+                fitColor = 'var(--warning)';
+            } else if (maxClearance < 0) {
+                fitType = 'interference';
+                fitColor = 'var(--danger)';
+            }
+            
+            const resultsDiv = document.getElementById('fit-results');
+            resultsDiv.innerHTML = `
+                <h3 style="font-size: 1.5rem; margin-bottom: 2rem; color: #a5b4fc;">Fit Analysis Results</h3>
+                
+                <div class="grid-3 mb-2">
+                    <div style="padding: 1.5rem; background: rgba(15, 23, 42, 0.6); border-radius: 12px;">
+                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.75rem; text-transform: uppercase;">Fit Type</div>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: ${fitColor}; text-transform: capitalize;">
+                            ${fitType}
+                        </div>
+                    </div>
+                    <div style="padding: 1.5rem; background: rgba(15, 23, 42, 0.6); border-radius: 12px;">
+                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.75rem; text-transform: uppercase;">Max Clearance</div>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: var(--success); font-family: 'JetBrains Mono', monospace;">
+                            ${maxClearance.toFixed(4)} mm
+                        </div>
+                    </div>
+                    <div style="padding: 1.5rem; background: rgba(15, 23, 42, 0.6); border-radius: 12px;">
+                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.75rem; text-transform: uppercase;">Min Clearance</div>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: ${minClearance < 0 ? 'var(--danger)' : 'var(--success)'}; font-family: 'JetBrains Mono', monospace;">
+                            ${minClearance.toFixed(4)} mm
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <h4 style="font-size: 1rem; margin-bottom: 1rem; color: #a5b4fc;">Interpretation</h4>
+                    <p style="margin: 0; color: #cbd5e1; line-height: 1.6;">
+                        ${fitType === 'clearance' ? 'The shaft will always be smaller than the hole, allowing for easy assembly and relative movement.' :
+                          fitType === 'transition' ? 'The fit can be either clearance or interference depending on actual manufactured dimensions. Assembly may require light force.' :
+                          'The shaft is always larger than the hole, requiring force for assembly. Creates a tight, secure fit.'}
+                    </p>
+                </div>
+            `;
+        }
+
+        // Configuration Save/Load
+        function saveConfiguration() {
+            const config = {
+                dimensions,
+                nextId,
+                timestamp: new Date().toISOString()
+            };
+            
+            const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `tolerance-analysis-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function loadConfiguration(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const config = JSON.parse(e.target.result);
+                    dimensions = config.dimensions || dimensions;
+                    nextId = config.nextId || nextId;
+                    renderDimensions();
+                    renderVisualization();
+                    if (currentTab === 'results') calculateAndUpdateResults();
+                } catch (error) {
+                    alert('Error loading configuration file: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // Initialize
+        renderDimensions();
+        renderVisualization();
+        calculateAndUpdateResults();
+    </script>
+</body>
+</html>

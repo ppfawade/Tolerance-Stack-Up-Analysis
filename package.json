@@ -1,0 +1,22 @@
+{
+  "name": "tolerance-stackup-analysis",
+  "version": "1.0.0",
+  "description": "Advanced tolerance stack-up analysis tool with Monte Carlo simulation",
+  "main": "tolerance-stackup.html",
+  "scripts": {
+    "dev": "echo 'Open tolerance-stackup.html in your browser'",
+    "deploy": "vercel --prod"
+  },
+  "keywords": [
+    "tolerance",
+    "engineering",
+    "manufacturing",
+    "mechanical",
+    "clearance-fit",
+    "monte-carlo",
+    "rss",
+    "stack-up"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}
